@@ -42,3 +42,14 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-frontend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-frontend:${{ github.sha }}
+      - name: Update Helm Image Tag in Git
+        run: |
+          # 1. עדכון ה-Tag בקובץ ה-values
+          sed -i 's/tag: .*/tag: "${{ github.sha }}"/' helm/skywatch/values.yaml
+          
+          # 2. דחיפת השינוי חזרה ל-Git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/skywatch/values.yaml
+          git commit -m "chore(ci): update image tag to ${{ github.sha }} [skip ci]"
+          git push origin main
