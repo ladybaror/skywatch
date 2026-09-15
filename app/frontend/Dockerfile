@@ -24,7 +24,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application source code
-COPY app.py .
+COPY app/frontend/app.py .
 
 # Create a non-root user for security best practices
 RUN useradd -m appuser && chown -R appuser:appuser /app
