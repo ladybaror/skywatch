@@ -74,6 +74,7 @@ HTML_TEMPLATE = """
                 <h3>{{ result.city_name }}, {{ result.country }}</h3>
                 <p><strong>Temperature:</strong> {{ result.temperature }} °C</p>
                 <p><strong>Wind Speed:</strong> {{ result.windspeed }} km/h</p>
+                <p><strong>Lat:</strong> {{ result.latitude}} Lot:</strong> {{ result.longitude}} </p>
             </div>
         {% endif %}
     </div>
