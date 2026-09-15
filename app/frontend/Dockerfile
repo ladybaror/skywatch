@@ -1,7 +1,7 @@
 # Stage 1: Build dependencies in temporary stage
 FROM python:3.11-slim AS builder
 
-WORKDIR /frontend/app
+WORKDIR /app/frontend
 
 # Prevent Python from writing .pyc files & buffering stdout
 ENV PYTHONDONTWRITEBYTECODE=1 \
