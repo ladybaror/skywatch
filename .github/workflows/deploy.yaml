@@ -36,7 +36,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: .\app\frontend\Dockerfile  # Adjust if your Dockerfile is in a subdirectory
+          file: ./app/frontend/Dockerfile  # Adjust if your Dockerfile is in a subdirectory
+          
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-frontend:latest
