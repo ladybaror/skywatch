@@ -3,11 +3,13 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-service
 spec:
-  type: {{ .Values.service.type | default "NodePort" }}
+  type: {{ .Values.service.type | default "ClusterIP" }}
   ports:
-    - port: 5000
+    - port: {{ .Values.service.port | default 8080 }}
       targetPort: 5000
-      nodePort: {{ .Values.service.nodePort | default 30000 }}
+      {{- if and (eq (.Values.service.type | default "ClusterIP") "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
       name: http
   selector:
     app: skywatch-frontend

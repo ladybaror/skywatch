@@ -10,8 +10,11 @@ image:
 service:
   type: NodePort
   port: 5000
-  nodePort: 30000
+
+
 
 # אומר ל-Kubernetes להריץ את האפליקציה ב-Worker 2 בלבד
 nodeSelector:
   workload: app
+
+  
