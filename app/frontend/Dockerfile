@@ -1,7 +1,7 @@
 # Stage 1: Build dependencies in temporary stage
 FROM python:3.11-slim AS builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 
 # Prevent Python from writing .pyc files & buffering stdout
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY requirements.txt .
+COPY app/frontend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final runtime image
