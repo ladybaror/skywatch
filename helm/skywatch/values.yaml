@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: ladybaror/skywatch-frontend
-  tag: "36d33f844cd1c6390b132298c79323f1ecf6105b"
+  tag: "59e15c75878a6d0f84189a3a0b009f03f685b531"
   pullPolicy: IfNotPresent  # משתמש בתמונה שטענו ל-k3d
 
 service:
