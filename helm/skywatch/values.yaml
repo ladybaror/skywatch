@@ -5,7 +5,7 @@ replicaCount: 1
 image:
 
   repository: dianabaror/skywatch-frontend
-  tag: "latest"
+  tag: "57e0486fd0b33306505c42a7aa9d6baadf9e3b25"
   pullPolicy: IfNotPresent  # משתמש בתמונה שטענו ל-k3d
 
 service:
