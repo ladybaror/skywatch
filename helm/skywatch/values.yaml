@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: skywatch-frontend
-  tag: v1.0.0
+  tag: "749d6aff50877d0ad40af5413d6809522994060f"
   pullPolicy: Never  # משתמש בתמונה שטענו ל-k3d
 
 service:
