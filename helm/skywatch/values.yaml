@@ -5,7 +5,7 @@ replicaCount: 1
 image:
 
   repository: dianabaror/skywatch-frontend
-  tag: "674753320590ef1717007007bd53eb13d36362b1"
+  tag: "23371a5fcb4904819db89efdabe37b7611d67e16"
   pullPolicy: IfNotPresent  # משתמש בתמונה שטענו ל-k3d
 
 service:
