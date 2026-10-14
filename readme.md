@@ -1,19 +1,14 @@
-להלן קובץ **`README.md`** מפורט ומקצועי המכסה את כל ארכיטקטורת הצינור והתשתיות של פרויקט **SkyWatch**, כולל הוראות התקנה, תפעול, ותחזוקה בסביבת AWS Free Tier:
-
-```markdown
 # 🛰️ SkyWatch – Cloud-Native K3s Infrastructure & GitOps Pipeline
 
-ארכיטקטורת ענן מקצה-לקצה (End-to-End) עבור מערכת **SkyWatch**, המבוססת על שרת **AWS EC2 (Free Tier)** בודד. הפרויקט מציג תהליך אוטומטי מלא מהקמת התשתית (IaC) ועד לפריסת האפליקציה בשיטת GitOps.
+An end-to-end cloud infrastructure and automation setup for the **SkyWatch** application, built on a single **AWS EC2 (Free Tier)** instance. This project demonstrates a fully automated pipeline starting from Infrastructure as Code (IaC) up to GitOps-driven deployment.
 
 ---
 
-## 📐 ארכיטקטורת המערכת (System Architecture)
+## 📐 System Architecture
 
-המערכת מוקמת בתוך VPC מבודד ב-AWS ומריצה קלאסטר **Single-Node K3s** המאחד את תפקידי ה-Control Plane וה-Worker הצמודים.
+The infrastructure is provisioned inside an isolated AWS VPC, hosting a **Single-Node K3s Cluster** that combines both Control Plane and Worker roles on a single server.
 
-
-```
-
+```text
 +----------------------------------------------------------------------------------+
 | AWS EC2 (t3.micro - Free Tier) - Ubuntu 22.04                                     |
 | 1GB Physical RAM + 2GB Swap File                                                 |
@@ -30,211 +25,157 @@
 |  |  └── 🔄 ArgoCD v2.11.2 (GitOps Controller - Sync from Git)                 |  |
 |  +----------------------------------------------------------------------------+  |
 +----------------------------------------------------------------------------------+
-▲
-│ Auto-Sync / Deployment
-│
-+----------------------+----------------------+
-|                                             |
-+--------------------+                        +--------------------+
-| GitHub Repository  |                        |  GitHub Container  |
-| (Helm Charts &     |                        |  Registry (GHCR)   |
-| Manifests)         |                        |  (Docker Images)   |
-+--------------------+                        +--------------------+
-
+                                      ▲
+                                      │ Auto-Sync / Deployment
+                                      │
+               +----------------------+----------------------+
+               |                                             |
+    +--------------------+                        +--------------------+
+    | GitHub Repository  |                        |  GitHub Container  |
+    | (Helm Charts &     |                        |  Registry (GHCR)   |
+    | Manifests)         |                        |  (Docker Images)   |
+    +--------------------+                        +--------------------+
 ```
 
 ---
 
-## 🛠️ טכנולוגיות מרכזיות (Tech Stack)
+## 🛠️ Tech Stack
 
-* **Infrastructure as Code (IaC):** Terraform (VPC, Security Groups, EC2, Inventory Export).
-* **Configuration Management:** Ansible (Swap Creation, Packages, K3s Bootstrap, Kubeconfig).
+* **Infrastructure as Code (IaC):** Terraform (VPC, Security Groups, EC2, Ansible Inventory Export).
+* **Configuration Management:** Ansible (Swap File Creation, System Packages, K3s Bootstrap, Kubeconfig Setup).
 * **Container Orchestration:** K3s v1.29.5 (Lightweight Kubernetes).
-* **CI/CD Pipeline:** GitHub Actions (Lint → Build & Push Multi-Stage Images to GHCR → Version Tag Bump).
-* **Packaging & GitOps:** Helm 3 + ArgoCD v2.11.2 (Auto-sync, Prune, Self-heal).
+* **CI/CD Pipeline:** GitHub Actions (Lint → Multi-Stage Docker Build & Push to GHCR → Version Tag Bump).
+* **Packaging & GitOps:** Helm 3 + ArgoCD v2.11.2 (Automated Sync, Pruning, Self-healing).
 * **Messaging & Processing:** RabbitMQ 3.13 + Python Workers + Node.js Frontend.
 
 ---
 
-## 📂 מבנה התיקיות בפרויקט (Directory Structure)
+## 📂 Directory Structure
 
 ```text
 skywatch/
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yaml          # צינור הבדיקות, הבנייה והדחיפה ל-GHCR
+│       └── ci-cd.yaml          # CI/CD Pipeline for Testing, Building, and Pushing to GHCR
 ├── terraform/
-│   ├── main.tf                 # הגדרות משאבי ה-AWS
-│   ├── variables.tf            # משתני תשתית (Region, Instance type, Key)
-│   ├── outputs.tf              # פלט IP וייצוא inventory.ini ל-Ansible
-│   └── terraform.tfvars        # ערכי משתנים מקומיים
+│   ├── main.tf                 # AWS Infrastructure Resource Definitions
+│   ├── variables.tf            # Infrastructure Variables (Region, Instance Type, Key Name)
+│   ├── outputs.tf              # Public IP Output & Automatic inventory.ini Generation
+│   └── terraform.tfvars        # Local Variable Values
 ├── ansible/
-│   ├── inventory.ini           # מיוצר אוטומטית ע"י Terraform
-│   └── setup.yml               # Playbook להגדרת Swap ו-K3s
+│   ├── inventory.ini           # Generated Automatically by Terraform
+│   └── setup.yml               # Ansible Playbook for Swap & K3s Bootstrap
 ├── helm/
-│   └── skywatch/               # Helm Chart של האפליקציה
+│   └── skywatch/               # Application Helm Chart
 │       ├── Chart.yaml
-│       └── values.yaml         # הגדרת מגבלות משאבים הדוקות (Requests/Limits)
+│       └── values.yaml         # Resource Constraints (Requests / Limits)
 └── argocd/
-    └── application.yaml        # אובייקט Application של ArgoCD
-
+    └── application.yaml        # ArgoCD Application Manifest
 ```
 
 ---
 
-## ⚡ הוראות התקנה והקמה (Deployment Guide)
+## ⚡ Deployment Guide
 
-### דרישות מוקדמות (Prerequisites)
-
-* להתקין במחשב המקומי: `aws-cli`, `terraform`, `ansible`, `kubectl`, `helm`.
-* הוספת SSH Key-Pair פעיל ב-AWS EC2.
-
----
-
-### שלב 1: הקמת התשתית ב-AWS (Terraform)
-
-1. היכנס/י לתיקיית ה-Terraform:
-```bash
-cd terraform
-
-```
-
-
-2. הגדר/י את שם המפתח הציבורי שלך ב-`terraform.tfvars`:
-```hcl
-key_name      = "your-aws-ssh-key"
-instance_type = "t3.micro"
-aws_region    = "eu-west-1"
-
-```
-
-
-3. בצע/י אתחול והקמה:
-```bash
-terraform init
-terraform apply --auto-approve
-
-```
-
-
-
-> **תוצאה:** השרת הוקם ב-AWS, וקובץ `ansible/inventory.ini` נוצר אוטומטית עם ה-IP הציבורי.
+### Prerequisites
+* Installed on local machine: `aws-cli`, `terraform`, `ansible`, `kubectl`, `helm`.
+* Active SSH Key-Pair uploaded to AWS EC2.
 
 ---
 
-### שלב 2: הגדרת השרת והתקנת K3s (Ansible)
+### Step 1: Provision Infrastructure with Terraform
 
-1. היכנס/י לתיקיית Ansible:
-```bash
-cd ../ansible
-
-```
-
-
-2. הרץ/י את ה-Playbook ליצירת קובץ ה-Swap והתקנת K3s:
-```bash
-ansible-playbook -i inventory.ini setup.yml --key-file ~/.ssh/your-aws-ssh-key.pem
-
-```
-
-
-
----
-
-### שלב 3: חיבור ה-kubectl המקומי לקלאסטר
-
-1. העבר/י את קובץ ה-Kubeconfig מהשרת למחשב המקומי:
-```bash
-scp -i ~/.ssh/your-aws-ssh-key.pem ubuntu@<SERVER_PUBLIC_IP>:/home/ubuntu/.kube/config ~/.kube/skywatch-aws.config
-
-```
-
-
-2. עדכן/י את ה-IP בקובץ התצורה:
-```bash
-sed -i '' 's/127.0.0.1/<SERVER_PUBLIC_IP>/g' ~/.kube/skywatch-aws.config
-
-```
-
-
-3. הגדר/י משתנה סביבה ובדוק/י חיבור:
-```bash
-export KUBECONFIG=~/.kube/skywatch-aws.config
-kubectl get nodes
-
-```
-
-
+1. Navigate to the `terraform` directory:
+   ```bash
+   cd terraform
+   ```
+2. Configure your SSH Key Name in `terraform.tfvars`:
+   ```hcl
+   key_name      = "your-aws-ssh-key"
+   instance_type = "t3.micro"
+   aws_region    = "eu-west-1"
+   ```
+3. Initialize and apply the configuration:
+   ```bash
+   terraform init
+   terraform apply --auto-approve
+   ```
+> **Result:** EC2 Instance and VPC resources are created in AWS, and `ansible/inventory.ini` is generated automatically.
 
 ---
 
-### שלב 4: התקנת ArgoCD ופריסת האפליקציה (GitOps)
+### Step 2: Configure Server & Install K3s with Ansible
 
-1. התקן/י את ArgoCD במצב חסכוני:
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f [https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.2/manifests/install.yaml](https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.2/manifests/install.yaml)
-
-```
-
-
-2. פרוס/י את הגדרת ה-GitOps Application:
-```bash
-kubectl apply -f argocd/application.yaml
-
-```
-
-
+1. Navigate to the `ansible` directory:
+   ```bash
+   cd ../ansible
+   ```
+2. Run the Ansible Playbook to configure Swap and install K3s:
+   ```bash
+   ansible-playbook -i inventory.ini setup.yml --key-file ~/.ssh/your-aws-ssh-key.pem
+   ```
 
 ---
 
-## 🔒 התאמות מיוחדות ל-AWS Free Tier (`t3.micro`)
+### Step 3: Connect Local `kubectl` to Remote Cluster
 
-עקב המגבלה הקשיחה של **1GB RAM**:
-
-1. **2GB Swap File:** מוקם באופן אוטומטי ע"י Ansible למניעת קריסות זיכרון (`OOMKilled`).
-2. **Strict Resource Limits:** כל רכיב ב-Helm (`values.yaml`) מוגבל בצורה קשיחה:
-* **Frontend:** Requests `64Mi`, Limits `128Mi`
-* **Worker:** Requests `64Mi`, Limits `128Mi`
-* **RabbitMQ:** Requests `128Mi`, Limits `256Mi`
-
-
+1. Fetch the `kubeconfig` file from the EC2 instance to your local machine:
+   ```bash
+   scp -i ~/.ssh/your-aws-ssh-key.pem ubuntu@<SERVER_PUBLIC_IP>:/home/ubuntu/.kube/config ~/.kube/skywatch-aws.config
+   ```
+2. Update the cluster server IP address inside the config file:
+   ```bash
+   sed -i '' 's/127.0.0.1/<SERVER_PUBLIC_IP>/g' ~/.kube/skywatch-aws.config
+   ```
+3. Set the `KUBECONFIG` environment variable and verify connectivity:
+   ```bash
+   export KUBECONFIG=~/.kube/skywatch-aws.config
+   kubectl get nodes
+   ```
 
 ---
 
-## 🔍 פקודות דיאגנוסטיקה ותפעול (Troubleshooting)
+### Step 4: Install ArgoCD & Deploy Application (GitOps)
 
-* **בדיקת סטטוס ה-Pods בקלאסטר:**
-```bash
-kubectl get pods -A
+1. Install ArgoCD in lightweight mode:
+   ```bash
+   kubectl create namespace argocd
+   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.2/manifests/install.yaml
+   ```
+2. Deploy the ArgoCD GitOps Application manifest:
+   ```bash
+   kubectl apply -f argocd/application.yaml
+   ```
 
-```
+---
 
+## 🔒 AWS Free Tier Optimizations (`t3.micro`)
 
-* **בדיקת ניצול זיכרון ו-CPU בזמן אמת:**
-```bash
-kubectl top pods
+Due to strict **1GB Physical RAM** constraints:
 
-```
+1. **2GB Swap File:** Automatically created by Ansible to prevent out-of-memory (`OOMKilled`) crashes.
+2. **Strict Resource Limits:** Enforced via Helm `values.yaml`:
+   * **Frontend:** Requests `64Mi`, Limits `128Mi`
+   * **Worker:** Requests `64Mi`, Limits `128Mi`
+   * **RabbitMQ:** Requests `128Mi`, Limits `256Mi`
 
+---
 
-* **צפייה בלוגים של ה-Worker:**
-```bash
-kubectl logs -l app=skywatch-worker -f
+## 🔍 Diagnostics & Operational Commands
 
-```
-
-
-* **בדיקת מצב זיכרון ה-Swap בשרת (SSH):**
-```bash
-ssh -i ~/.ssh/your-aws-ssh-key.pem ubuntu@<SERVER_PUBLIC_IP> "free -h"
-
-```
-
-
-
-```
-
-<FollowUp label="רוצה לשמור את ה-README כקובץ או להוסיף סעיף בדיקות אבטחה (Security Guidelines)?" query="איך להוסיף הנחיות אבטחה ו-Security Groups לקובץ ה-README?"/>
-
-```
+* **Check Cluster Pods Status:**
+  ```bash
+  kubectl get pods -A
+  ```
+* **Monitor Resource Usage (CPU/RAM):**
+  ```bash
+  kubectl top pods
+  ```
+* **View Worker Logs:**
+  ```bash
+  kubectl logs -l app=skywatch-worker -f
+  ```
+* **Check Swap Memory Status on EC2:**
+  ```bash
+  ssh -i ~/.ssh/your-aws-ssh-key.pem ubuntu@<SERVER_PUBLIC_IP> "free -h"
+  ```
