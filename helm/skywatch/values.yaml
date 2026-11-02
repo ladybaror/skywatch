@@ -14,8 +14,6 @@ frontend:
     port: 5000
     nodePort: 30080  # אופציונלי: קיבוע פורט חיצוני לדפדפן
 
- 
-  pullPolicy: IfNotPresent  # משתמש בתמונה שטענו ל-k3d
 
 
 # הגדרות ה-Worker שרץ ברקע
