@@ -23,7 +23,7 @@ worker:
   replicaCount: 1
   image:
     repository: skywatch-worker  # עדכני לשם האימג' של ה-Worker שלך ב-GHCR
-    tag: "latest"                           # או תגית מעודכנת
+    tag: "frontend"                           # או תגית מעודכנת
 
 # הגדרות RabbitMQ
 rabbitmq:
