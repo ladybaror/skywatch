@@ -4,7 +4,7 @@ replicaCount: 1
 
 # הגדרות ברירת מחדל משותפות
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always 
 frontend:
   image:
     repository: dianabaror/skywatch-frontend
