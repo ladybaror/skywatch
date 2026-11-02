@@ -17,7 +17,8 @@ spec:
       containers:
         - name: skywatch-frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          
           ports:
             - containerPort: 5000
               name: http

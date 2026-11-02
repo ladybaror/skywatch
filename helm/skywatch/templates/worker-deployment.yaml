@@ -18,7 +18,7 @@ spec:
         - name: skywatch-worker
           image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
           command: ["python", "-u", "worker.py"]
-          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy  }}
           env:
            - name: RABBITMQ_HOST
              value: "{{ .Values.rabbitmq.host }}"
