@@ -5,8 +5,6 @@ replicaCount: 1
 # הגדרות ברירת מחדל משותפות
 image:
   pullPolicy: IfNotPresent
-
-# הגדרות שרת ה-Frontend
 frontend:
   image:
     repository: dianabaror/skywatch-frontend
@@ -15,6 +13,10 @@ frontend:
     type: NodePort
     port: 5000
     nodePort: 30080  # אופציונלי: קיבוע פורט חיצוני לדפדפן
+
+ 
+  pullPolicy: IfNotPresent  # משתמש בתמונה שטענו ל-k3d
+
 
 # הגדרות ה-Worker שרץ ברקע
 worker:
