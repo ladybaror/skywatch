@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY app/frontend/requirements.txt .
+COPY frontend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final runtime image
@@ -23,8 +23,8 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application source code
-COPY app/frontend/app.py .
+# Copy application source code (assuming app.py is inside frontend/)
+COPY frontend/app.py .
 
 # Create a non-root user for security best practices
 RUN useradd -m appuser && chown -R appuser:appuser /app

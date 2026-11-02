@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels:
+    app: skywatch-worker
+spec:
+  replicas: {{ .Values.worker.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: skywatch-worker
+  template:
+    metadata:
+      labels:
+        app: skywatch-worker
+    spec:
+      containers:
+        - name: skywatch-worker
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
+          command: ["python", "-u", "worker.py"]
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          env:
+           - name: RABBITMQ_HOST
+             value: "{{ .Values.rabbitmq.host }}"
+           - name: PYTHONUNBUFFERED
+             value: "1"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      # מבטיח שה-Worker ירוץ בדיוק כמו ה-Frontend על Worker 2
+      nodeSelector:
+        workload: app
+    

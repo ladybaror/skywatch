@@ -2,20 +2,61 @@
 
 replicaCount: 1
 
+# הגדרות ברירת מחדל משותפות
 image:
+  pullPolicy: IfNotPresent
 
-  repository: dianabaror/skywatch-frontend
-  tag: "674753320590ef1717007007bd53eb13d36362b1"
-  pullPolicy: IfNotPresent  # משתמש בתמונה שטענו ל-k3d
+# הגדרות שרת ה-Frontend
+frontend:
+  image:
+    repository: dianabaror/skywatch-frontend
+    tag: "latest"
+  service:
+    type: NodePort
+    port: 5000
+    nodePort: 30080  # אופציונלי: קיבוע פורט חיצוני לדפדפן
 
+# הגדרות ה-Worker שרץ ברקע
+worker:
+  replicaCount: 1
+  image:
+    repository: skywatch-worker  # עדכני לשם האימג' של ה-Worker שלך ב-GHCR
+    tag: "latest"                           # או תגית מעודכנת
+
+# הגדרות RabbitMQ
+rabbitmq:
+  # השם המדויק של ה-Service של ה-RabbitMQ בקלאסטר שלך
+  host: "rabbitmq" 
+  enabled: true
+  auth:
+    username: guest
+    password: guest
+  service:
+    port: 5672
 service:
   type: NodePort
   port: 5000
+# משתני סביבה גלובליים (לדוגמה, חיבור ל-RabbitMQ)
+env:
+  rabbitmqHost: "rabbitmq"  # שם ה-Service של RabbitMQ בקלאסטר
 
-
-
-# אומר ל-Kubernetes להריץ את האפליקציה ב-Worker 2 בלבד
+# אומר ל-Kubernetes להריץ את הרכיבים ב-Worker 2 בלבד
 nodeSelector:
   workload: app
 
-  
+# מגבלות משאבים קשיחות (מתאים לסביבת פיתוח / 1GB RAM)
+resources:
+  frontend:
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+  worker:
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+    requests:
+      cpu: "50m"
+      memory: "64Mi"

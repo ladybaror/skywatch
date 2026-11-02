@@ -16,11 +16,14 @@ spec:
     spec:
       containers:
         - name: skywatch-frontend
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           ports:
             - containerPort: 5000
               name: http
+          env:
+            - name: RABBITMQ_HOST
+              value: "{{ .Values.rabbitmq.host }}"
           resources:
             requests:
               cpu: "100m"

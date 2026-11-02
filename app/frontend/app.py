@@ -1,43 +1,30 @@
 from flask import Flask, render_template_string, request, jsonify
-import requests
+import pika
+import os
+import json
 
 app = Flask(__name__)
 
-def fetch_weather(city_name):
-    """Directly queries Open-Meteo APIs for geocoding and weather data."""
-    # 1. Convert City Name -> Latitude/Longitude using Open-Meteo Geocoding
-    geo_url = "https://geocoding-api.open-meteo.com/v1/search"
-    geo_resp = requests.get(geo_url, params={"name": city_name, "count": 1}, timeout=5)
-    geo_data = geo_resp.json()
+# כתובת ה-RabbitMQ (יכולה להגיע מ-Environment Variable או ברירת מחדל ללוקאל)
+RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "localhost")
 
-    if not geo_data.get("results"):
-        return {"error": f"City '{city_name}' not found."}
-
-    location = geo_data["results"][0]
-    lat = location["latitude"]
-    lon = location["longitude"]
-    country = location.get("country", "Unknown")
-
-    # 2. Fetch current weather using Latitude & Longitude
-    weather_url = "https://api.open-meteo.com/v1/forecast"
-    weather_params = {
-        "latitude": lat,
-        "longitude": lon,
-        "current_weather": True
-    }
-    weather_resp = requests.get(weather_url, params=weather_params, timeout=5)
-    weather_data = weather_resp.json()
-
-    current = weather_data.get("current_weather", {})
-
-    return {
-        "city_name": location["name"],
-        "country": country,
-        "latitude": lat,
-        "longitude": lon,
-        "temperature": current.get("temperature"),
-        "windspeed": current.get("windspeed")
-    }
+def publish_to_queue(city_name):
+    """Publishes a city search request to RabbitMQ queue."""
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+    channel = connection.channel()
+    
+    # יצירת תור בשם weather_requests אם אינו קיים
+    channel.queue_declare(queue='weather_requests', durable=True)
+    
+    message = json.dumps({"city": city_name})
+    channel.basic_publish(
+        exchange='',
+        routing_key='weather_requests',
+        body=message,
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # הופך את ההודעה לפריסיסטנטית (שלא תימחק באתחול)
+        ))
+    connection.close()
 
 
 HTML_TEMPLATE = """
@@ -54,28 +41,24 @@ HTML_TEMPLATE = """
         input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .result { background: #f9f9f9; padding: 12px; border-radius: 4px; }
+        .success { color: green; }
         .error { color: red; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>🌤️ SkyWatch (Basic Flask App)</h2>
+        <h2>🌤️ SkyWatch (Async Queue Architecture)</h2>
         <form method="POST">
             <input type="text" name="city" placeholder="Enter city (e.g., London, Tokyo)" required>
-            <button type="submit">Search</button>
+            <button type="submit">Submit Request</button>
         </form>
 
         {% if error %}
             <div class="result error"><strong>Error:</strong> {{ error }}</div>
         {% endif %}
 
-        {% if result %}
-            <div class="result">
-                <h3>{{ result.city_name }}, {{ result.country }}</h3>
-                <p><strong>Temperature:</strong> {{ result.temperature }} °C</p>
-                <p><strong>Wind Speed:</strong> {{ result.windspeed }} km/h</p>
-                <p><strong>Lat:</strong> {{ result.latitude}} Lot:</strong> {{ result.longitude}} </p>
-            </div>
+        {% if success %}
+            <div class="result success"><strong>Success:</strong> {{ success }}</div>
         {% endif %}
     </div>
 </body>
@@ -90,12 +73,10 @@ def index():
             return render_template_string(HTML_TEMPLATE, error="Please enter a city name.")
         
         try:
-            data = fetch_weather(city)
-            if "error" in data:
-                return render_template_string(HTML_TEMPLATE, error=data["error"])
-            return render_template_string(HTML_TEMPLATE, result=data)
+            publish_to_queue(city)
+            return render_template_string(HTML_TEMPLATE, success=f"City '{city}' was successfully sent to the processing queue!")
         except Exception as e:
-            return render_template_string(HTML_TEMPLATE, error=f"Request failed: {str(e)}")
+            return render_template_string(HTML_TEMPLATE, error=f"Failed to queue request: {str(e)}")
 
     return render_template_string(HTML_TEMPLATE)
 
