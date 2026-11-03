@@ -45,6 +45,16 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-frontend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-frontend:${{ github.sha }}
+
+      - name: Build and Push Worker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./app/worker/Dockerfile  # 👈 ודאו שזה הנתיב הנכון ל-Dockerfile של הוורקר שלכם
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-worker:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/skywatch-worker:${{ github.sha }}
       - name: Update Helm Image Tag in Git
         run: |
           # 1. עדכון ה-Tag בקובץ ה-values
