@@ -8,7 +8,7 @@ image:
 frontend:
   image:
     repository: dianabaror/skywatch-frontend
-    tag: "a8f47004ef4c3c200632fcf2a3ae6993fac393d0"
+    tag: "d2b405db58acd4e724af9afec7bc3aa1a386a1d2"
   service:
     type: NodePort
     port: 5000
@@ -21,7 +21,7 @@ worker:
   replicaCount: 1
   image:
     repository: dianabaror/skywatch-worker  # עדכני לשם האימג' של ה-Worker שלך ב-GHCR
-    tag: "a8f47004ef4c3c200632fcf2a3ae6993fac393d0"
+    tag: "d2b405db58acd4e724af9afec7bc3aa1a386a1d2"
     pullPolicy: Always
 
 # הגדרות RabbitMQ
