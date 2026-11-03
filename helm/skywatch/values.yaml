@@ -22,6 +22,7 @@ worker:
   image:
     repository: dianabaror/skywatch-worker  # עדכני לשם האימג' של ה-Worker שלך ב-GHCR
     tag: "a8f47004ef4c3c200632fcf2a3ae6993fac393d0"
+    pullPolicy: Always
 
 # הגדרות RabbitMQ
 rabbitmq:
