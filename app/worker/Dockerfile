@@ -12,7 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY worker/requirements.txt .
+COPY  app/worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final runtime image
@@ -28,7 +28,7 @@ COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy worker application source code with correct ownership
-COPY --chown=appuser:appuser worker/ .
+COPY --chown=appuser:appuser app/worker/ .
 
 # Switch to the non-root user
 USER appuser
