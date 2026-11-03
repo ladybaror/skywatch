@@ -4,7 +4,6 @@ import json
 import requests
 import time
 
-# משיכת ה-Host (אם רץ לוקאלית ישתמש ב-localhost, אם בקלאסטר ישתמש במה שמוגדר ב-YAML)
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "localhost")
 
 def fetch_weather(city_name):

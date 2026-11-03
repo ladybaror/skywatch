@@ -13,7 +13,7 @@ def publish_to_queue(city_name):
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
     channel = connection.channel()
     
-    # יצירת תור בשם weather_requests אם אינו קיים
+    # Create a queue weather_requests if not exist
     channel.queue_declare(queue='weather_requests', durable=True)
     
     message = json.dumps({"city": city_name})
