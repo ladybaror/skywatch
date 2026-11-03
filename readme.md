@@ -1,39 +1,43 @@
-# 🛰️ SkyWatch – Cloud-Native K3s Infrastructure & GitOps Pipeline
+# 🛰️ SkyWatch – Cloud-Native Local K3d Infrastructure & GitOps Pipeline
 
-An end-to-end cloud infrastructure and automation setup for the **SkyWatch** application, built on a single **AWS EC2 (Free Tier)** instance. This project demonstrates a fully automated pipeline starting from Infrastructure as Code (IaC) up to GitOps-driven deployment.
+An end-to-end local infrastructure and automation setup for the **SkyWatch** application, built on a local **k3d (K3s in Docker)** cluster. This project demonstrates a fully automated pipeline starting from local development up to GitOps-driven deployment.
 
 ---
 
 ## 📐 System Architecture
 
-The infrastructure is provisioned inside an isolated AWS VPC, hosting a **Single-Node K3s Cluster** that combines both Control Plane and Worker roles on a single server.
+The infrastructure is provisioned locally inside a multi-node k3d cluster hosting a Control Plane node and 2 dedicated Agent nodes separating workloads.
 
 ```text
 +----------------------------------------------------------------------------------+
-| AWS EC2 (t3.micro - Free Tier) - Ubuntu 22.04                                     |
-| 1GB Physical RAM + 2GB Swap File                                                 |
+
+| Local Machine (Docker Desktop / Docker Daemon)                                   |
 |                                                                                  |
 |  +----------------------------------------------------------------------------+  |
-|  | K3s Lightweight Kubernetes Cluster                                         |  |
+|  | k3d (Lightweight K3s Kubernetes Cluster)                                   |  |
 |  |                                                                            |  |
-|  | [Namespace: default / skywatch]                                            |  |
+|  | [Server Node: server:0] (Tainted: NoSchedule)                              |  |
+|  |                                                                            |  |
+|  | [Agent Node 0: workload=argocd]                                            |  |
+|  |  └── 🔄 ArgoCD v2.11.2 (GitOps Controller)                                 |  |
+|  |                                                                            |  |
+|  | [Agent Node 1: workload=app]                                               |  |
 |  |  ├── 🌐 SkyWatch Frontend (Pod)                                            |  |
 |  |  ├── 🐰 RabbitMQ 3.13-management (StatefulSet/Pod)                         |  |
 |  |  └── ⚙️  SkyWatch Worker (Pod)                                              |  |
-|  |                                                                            |  |
-|  | [Namespace: argocd]                                                        |  |
-|  |  └── 🔄 ArgoCD v2.11.2 (GitOps Controller - Sync from Git)                 |  |
 |  +----------------------------------------------------------------------------+  |
 +----------------------------------------------------------------------------------+
                                       ▲
                                       │ Auto-Sync / Deployment
                                       │
                +----------------------+----------------------+
+
                |                                             |
     +--------------------+                        +--------------------+
-    | GitHub Repository  |                        |  GitHub Container  |
-    | (Helm Charts &     |                        |  Registry (GHCR)   |
-    | Manifests)         |                        |  (Docker Images)   |
+
+    | GitHub Repository  |                        | Docker Hub Registry|
+    | (Helm Charts &     |                        | (dianabaror/)      |
+    | Manifests)         |                        | (Docker Images)    |
     +--------------------+                        +--------------------+
 ```
 
@@ -41,10 +45,9 @@ The infrastructure is provisioned inside an isolated AWS VPC, hosting a **Single
 
 ## 🛠️ Tech Stack
 
-* **Infrastructure as Code (IaC):** Terraform (VPC, Security Groups, EC2, Ansible Inventory Export).
-* **Configuration Management:** Ansible (Swap File Creation, System Packages, K3s Bootstrap, Kubeconfig Setup).
+* **Local Cluster:** k3d v5+ (K3s in Docker containers).
 * **Container Orchestration:** K3s v1.29.5 (Lightweight Kubernetes).
-* **CI/CD Pipeline:** GitHub Actions (Lint → Multi-Stage Docker Build & Push to GHCR → Version Tag Bump).
+* **CI/CD Pipeline:** GitHub Actions (Lint → Multi-Stage Docker Build & Push to Docker Hub → Automatic YAML Version Tag Bump).
 * **Packaging & GitOps:** Helm 3 + ArgoCD v2.11.2 (Automated Sync, Pruning, Self-healing).
 * **Messaging & Processing:** RabbitMQ 3.13 + Python Workers + Node.js Frontend.
 
@@ -56,126 +59,95 @@ The infrastructure is provisioned inside an isolated AWS VPC, hosting a **Single
 skywatch/
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yaml          # CI/CD Pipeline for Testing, Building, and Pushing to GHCR
-├── terraform/
-│   ├── main.tf                 # AWS Infrastructure Resource Definitions
-│   ├── variables.tf            # Infrastructure Variables (Region, Instance Type, Key Name)
-│   ├── outputs.tf              # Public IP Output & Automatic inventory.ini Generation
-│   └── terraform.tfvars        # Local Variable Values
-├── ansible/
-│   ├── inventory.ini           # Generated Automatically by Terraform
-│   └── setup.yml               # Ansible Playbook for Swap & K3s Bootstrap
+│       └── ci-cd.yaml          # CI/CD Pipeline for Testing, Building, and Pushing to Docker Hub
+├── app/
+│   ├── frontend/               # Frontend Application with Dockerfile
+│   └── worker/                 # Worker Processing Application with Dockerfile
 ├── helm/
 │   └── skywatch/               # Application Helm Chart
 │       ├── Chart.yaml
-│       └── values.yaml         # Resource Constraints (Requests / Limits)
+│       └── values.yaml         # Resource Constraints & Image Configurations
 └── argocd/
     └── application.yaml        # ArgoCD Application Manifest
 ```
 
 ---
 
-## ⚡ Deployment Guide
+## ⚡ Deployment & Setup Guide
 
 ### Prerequisites
-* Installed on local machine: `aws-cli`, `terraform`, `ansible`, `kubectl`, `helm`.
-* Active SSH Key-Pair uploaded to AWS EC2.
+* Installed on local machine: `Docker Desktop`, `k3d`, `kubectl`, `helm`.
+* Active account on **Docker Hub**.
 
 ---
 
-### Step 1: Provision Infrastructure with Terraform
+### Step 1: Bootstrap the Local Cluster with k3d
 
-1. Navigate to the `terraform` directory:
-   ```bash
-   cd terraform
-   ```
-2. Configure your SSH Key Name in `terraform.tfvars`:
-   ```hcl
-   key_name      = "your-aws-ssh-key"
-   instance_type = "t3.micro"
-   aws_region    = "eu-west-1"
-   ```
-3. Initialize and apply the configuration:
-   ```bash
-   terraform init
-   terraform apply --auto-approve
-   ```
-> **Result:** EC2 Instance and VPC resources are created in AWS, and `ansible/inventory.ini` is generated automatically.
+Create the cluster with a dedicated server control plane, 2 agents, dedicated ports, taints, and labels:
+
+```powershell
+k3d cluster create skywatch `
+  --agents 2 `
+  --port "8080:30000@server:0" `
+  --k3s-arg "--node-taint=node-role.kubernetes.io/control-plane:NoSchedule@server:0" `
+  --k3s-arg "--node-label=workload=argocd@agent:0" `
+  --k3s-arg "--node-label=workload=app@agent:1"
+```
 
 ---
 
-### Step 2: Configure Server & Install K3s with Ansible
+### Step 2: Install ArgoCD (Server-Side Fix for Large CRDs)
 
-1. Navigate to the `ansible` directory:
-   ```bash
-   cd ../ansible
-   ```
-2. Run the Ansible Playbook to configure Swap and install K3s:
-   ```bash
-   ansible-playbook -i inventory.ini setup.yml --key-file ~/.ssh/your-aws-ssh-key.pem
-   ```
+Due to large CRD sizes in ArgoCD, it must be installed using `--server-side` to avoid client-size metadata byte limitations:
 
----
-
-### Step 3: Connect Local `kubectl` to Remote Cluster
-
-1. Fetch the `kubeconfig` file from the EC2 instance to your local machine:
-   ```bash
-   scp -i ~/.ssh/your-aws-ssh-key.pem ubuntu@<SERVER_PUBLIC_IP>:/home/ubuntu/.kube/config ~/.kube/skywatch-aws.config
-   ```
-2. Update the cluster server IP address inside the config file:
-   ```bash
-   sed -i '' 's/127.0.0.1/<SERVER_PUBLIC_IP>/g' ~/.kube/skywatch-aws.config
-   ```
-3. Set the `KUBECONFIG` environment variable and verify connectivity:
-   ```bash
-   export KUBECONFIG=~/.kube/skywatch-aws.config
-   kubectl get nodes
-   ```
-
----
-
-### Step 4: Install ArgoCD & Deploy Application (GitOps)
-
-1. Install ArgoCD in lightweight mode:
-   ```bash
+1. Create the dedicated namespace:
+   ```powershell
    kubectl create namespace argocd
-   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.11.2/manifests/install.yaml
    ```
-2. Deploy the ArgoCD GitOps Application manifest:
-   ```bash
-   kubectl apply -f argocd/application.yaml
+2. Apply the manifest with server-side configurations:
+   ```powershell
+   kubectl apply -n argocd -f https://githubusercontent.com --server-side --force-conflicts
    ```
 
 ---
 
-## 🔒 AWS Free Tier Optimizations (`t3.micro`)
+### Step 3: Access ArgoCD Dashboard & Fetch Password
 
-Due to strict **1GB Physical RAM** constraints:
+1. Establish a port-forward tunnel (using port 9090 to avoid local port conflicts):
+   ```powershell
+   kubectl port-forward svc/argocd-server -n argocd 9090:443
+   ```
+2. Open your browser and navigate to: `https://127.0.0.1:9090` (Username: `admin`).
+3. Decode the initial admin password via PowerShell:
+   ```powershell
+   \$secret = kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}"
+   [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(\$secret))
+   ```
 
-1. **2GB Swap File:** Automatically created by Ansible to prevent out-of-memory (`OOMKilled`) crashes.
-2. **Strict Resource Limits:** Enforced via Helm `values.yaml`:
-   * **Frontend:** Requests `64Mi`, Limits `128Mi`
-   * **Worker:** Requests `64Mi`, Limits `128Mi`
-   * **RabbitMQ:** Requests `128Mi`, Limits `256Mi`
+---
+
+### Step 4: Deploy the App via GitOps Manifest
+
+Apply the Application controller config to prompt ArgoCD to track your public GitHub repository:
+
+```powershell
+kubectl apply -n argocd -f argocd/application.yaml
+```
 
 ---
 
 ## 🔍 Diagnostics & Operational Commands
 
 * **Check Cluster Pods Status:**
-  ```bash
-  kubectl get pods -A
+  ```powershell
+  kubectl get pods
   ```
-* **Monitor Resource Usage (CPU/RAM):**
-  ```bash
-  kubectl top pods
+* **View Real-Time Application Logs:**
+  ```powershell
+  kubectl logs deployment/skywatch-app --tail=50
+  kubectl logs deployment/skywatch-app-worker --tail=50
   ```
-* **View Worker Logs:**
-  ```bash
-  kubectl logs -l app=skywatch-worker -f
-  ```
-* **Check Swap Memory Status on EC2:**
-  ```bash
-  ssh -i ~/.ssh/your-aws-ssh-key.pem ubuntu@<SERVER_PUBLIC_IP> "free -h"
+* **Verify running image tags (SHA):**
+  ```powershell
+  kubectl get deployment skywatch-app -o jsonpath='{.spec.template.spec.containers[*].image}'
   ```
